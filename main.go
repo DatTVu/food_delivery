@@ -1,18 +1,21 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
+	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
 type SQLModel struct {
-	ID        int       `gorm:"column:id;"`
-	CreatedAt time.Time `gorm:"column:created_at;"`
-	UpdatedAt time.Time `gorm:"column:updated_at;"`
-	Status    int       `gorm:"column:status;default:1;"`
+	ID        int       `json:"id" gorm:"column:id;"`
+	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;"`
+	Status    int       `json:"status" gorm:"column:status;default:1;"`
 }
 
 type Note struct {
@@ -48,24 +51,21 @@ func (Restaurant) TableName() string {
 
 type RestaurantCreate struct {
 	SQLModel
-	OwnerId *int    `gorm:"column:owner_id;"`
-	Name    *string `gorm:"column:name;"`
-	Address *string `gorm:"column:addr;"`
+	Name    string `json:"name" gorm:"column:name;"`
+	Address string `json:"address" gorm:"column:addr;"`
 }
 
 func (RestaurantCreate) TableName() string {
-	return "restaurants"
+	return Restaurant{}.TableName()
 }
 
 type RestaurantUpdate struct {
-	SQLModel
-	OwnerId *int    `gorm:"column:owner_id;"`
-	Name    *string `gorm:"column:name;"`
-	Address *string `gorm:"column:addr;"`
+	Name    *string `json:"name" gorm:"column:name;"`
+	Address *string `json:"address" gorm:"column:addr;"`
 }
 
 func (RestaurantUpdate) TableName() string {
-	return "restaurants"
+	return Restaurant{}.TableName()
 }
 
 func main() {
@@ -80,40 +80,136 @@ func main() {
 
 	db = db.Debug()
 
-	var myNote Note
-	if err := db.
-		Where("id = ?", 7).
-		First(&myNote).Error; err != nil {
-		log.Println(err)
-	}
-	log.Println(myNote.Name, myNote.CategoryId)
+	r := gin.Default()
+	v1 := r.Group("/v1")
 
-	var listNote []Note
-	if err := db.Find(&listNote).Error; err != nil {
-		log.Println(err)
-	}
+	{
+		restaurants := v1.Group("/restaurants")
+		{
+			//CRUD Block
+			//CREATE
+			restaurants.POST("", func(c *gin.Context) {
+				var newRestaurant RestaurantCreate
+				if err := c.ShouldBind(&newRestaurant); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err})
+					return
+				}
+				if err := db.Create(&newRestaurant).Error; err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, gin.H{"data": newRestaurant.ID})
+			})
 
-	log.Println(listNote)
-	myNote.Name = "Huong Mai"
-	emptyString := ""
-	zeroCategoryId := 0
-	if err := db.
-		Where("id=?", 9).
-		Updates(NoteUpdate{
-			Name:       &emptyString,
-			CategoryId: &zeroCategoryId,
-		}).Error; err != nil {
-		log.Println(err)
-	}
+			//GET
+			restaurants.GET("", func(c *gin.Context) {
+				var restaurantsList []Restaurant
 
-	log.Println(myNote)
+				var paging struct {
+					Page  int   `json:"page" form:"page"`
+					Limit int   `json:"limit" form:"limit"`
+					Total int64 `json:"total" form:"total "`
+				}
 
-	//Hard delete
-	if err := db.
-		Table(myNote.TableName()).
-		Where("id=?", 9).
-		Delete(nil); err != nil {
-		log.Println(err)
+				if err := c.ShouldBind(&paging); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+
+				if paging.Limit <= 0 {
+					paging.Limit = 10
+				}
+
+				if paging.Page <= 0 {
+					paging.Page = 1
+				}
+
+				if err := db.Table(Restaurant{}.TableName()).Count(&paging.Total).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+
+				if err := db.
+					Limit(paging.Limit).
+					Offset((paging.Page - 1) * paging.Limit).
+					Order("id desc").
+					Find(&restaurantsList).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+
+				c.JSON(http.StatusOK, gin.H{"data": restaurantsList, "paging": paging})
+
+			})
+
+			//GET ID
+			restaurants.GET("/:id", func(c *gin.Context) {
+				id_, err_ := strconv.Atoi(c.Param("id"))
+				if err_ != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"data": err})
+					return
+				}
+
+				var restaurant Restaurant
+
+				if err := db.
+					Where("id = ?", id_).
+					First(&restaurant).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
+					return
+				}
+
+				c.JSON(http.StatusOK, gin.H{"data": restaurant})
+				return
+			})
+
+			//UPDATE
+			restaurants.PUT("/:id", func(c *gin.Context) {
+				id_, err_ := strconv.Atoi(c.Param("id"))
+				if err_ != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"data": err})
+					return
+				}
+
+				var updatedData RestaurantUpdate
+
+				if err := c.ShouldBind(&updatedData); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err})
+					return
+				}
+
+				if err := db.
+					Table(updatedData.TableName()).
+					Where("id = ?", id_).
+					Updates(updatedData).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
+					return
+				}
+
+				c.JSON(http.StatusOK, gin.H{"data": 1})
+				return
+			})
+
+			restaurants.DELETE("/:id", func(c *gin.Context) {
+				id_, err_ := strconv.Atoi(c.Param("id"))
+				if err_ != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"data": err})
+					return
+				}
+
+				if err := db.
+					Table(Restaurant{}.TableName()).
+					Where("id = ?", id_).
+					Delete(nil).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
+					return
+				}
+
+				c.JSON(http.StatusOK, gin.H{"data": 1})
+				return
+			})
+		}
 	}
+	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 
 }
