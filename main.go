@@ -1,6 +1,7 @@
 package main
 
 import (
+	ginrestaurant "fooddelivery/module/restaurant/transport/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -18,26 +19,6 @@ type SQLModel struct {
 	Status    int       `json:"status" gorm:"column:status;default:1;"`
 }
 
-type Note struct {
-	SQLModel
-	Name       string `gorm:"column:title;"`
-	CategoryId int    `gorm:"column:category_id;"`
-}
-
-func (Note) TableName() string {
-	return "notes"
-}
-
-type NoteUpdate struct {
-	Name       *string `gorm:"column:title;"`
-	CategoryId *int    `gorm:"column:category_id;"`
-	Status     *int    `gorm:"column:status;"`
-}
-
-func (NoteUpdate) TableName() string {
-	return Note{}.TableName()
-}
-
 type Restaurant struct {
 	SQLModel
 	OwnerId int    `gorm:"column:owner_id;"`
@@ -47,16 +28,6 @@ type Restaurant struct {
 
 func (Restaurant) TableName() string {
 	return "restaurants"
-}
-
-type RestaurantCreate struct {
-	SQLModel
-	Name    string `json:"name" gorm:"column:name;"`
-	Address string `json:"address" gorm:"column:addr;"`
-}
-
-func (RestaurantCreate) TableName() string {
-	return Restaurant{}.TableName()
 }
 
 type RestaurantUpdate struct {
@@ -88,59 +59,10 @@ func main() {
 		{
 			//CRUD Block
 			//CREATE
-			restaurants.POST("", func(c *gin.Context) {
-				var newRestaurant RestaurantCreate
-				if err := c.ShouldBind(&newRestaurant); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err})
-					return
-				}
-				if err := db.Create(&newRestaurant).Error; err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"data": newRestaurant.ID})
-			})
+			restaurants.POST("", ginrestaurant.CreateRestaurant(db))
 
 			//GET
-			restaurants.GET("", func(c *gin.Context) {
-				var restaurantsList []Restaurant
-
-				var paging struct {
-					Page  int   `json:"page" form:"page"`
-					Limit int   `json:"limit" form:"limit"`
-					Total int64 `json:"total" form:"total "`
-				}
-
-				if err := c.ShouldBind(&paging); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-
-				if paging.Limit <= 0 {
-					paging.Limit = 10
-				}
-
-				if paging.Page <= 0 {
-					paging.Page = 1
-				}
-
-				if err := db.Table(Restaurant{}.TableName()).Count(&paging.Total).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-
-				if err := db.
-					Limit(paging.Limit).
-					Offset((paging.Page - 1) * paging.Limit).
-					Order("id desc").
-					Find(&restaurantsList).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": restaurantsList, "paging": paging})
-
-			})
+			restaurants.GET("", ginrestaurant.ListRestaurant(db))
 
 			//GET ID
 			restaurants.GET("/:id", func(c *gin.Context) {
@@ -211,5 +133,4 @@ func main() {
 		}
 	}
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
-
 }
