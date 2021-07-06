@@ -57,61 +57,15 @@ func main() {
 	{
 		restaurants := v1.Group("/restaurants")
 		{
-			//CRUD Block
 			//CREATE
 			restaurants.POST("", ginrestaurant.CreateRestaurant(db))
-
 			//GET
 			restaurants.GET("", ginrestaurant.ListRestaurant(db))
-
 			//GET ID
-			restaurants.GET("/:id", func(c *gin.Context) {
-				id_, err_ := strconv.Atoi(c.Param("id"))
-				if err_ != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"data": err})
-					return
-				}
-
-				var restaurant Restaurant
-
-				if err := db.
-					Where("id = ?", id_).
-					First(&restaurant).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": restaurant})
-				return
-			})
-
+			restaurants.GET("/:id", ginrestaurant.GetRestaurant(db))
 			//UPDATE
-			restaurants.PUT("/:id", func(c *gin.Context) {
-				id_, err_ := strconv.Atoi(c.Param("id"))
-				if err_ != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"data": err})
-					return
-				}
-
-				var updatedData RestaurantUpdate
-
-				if err := c.ShouldBind(&updatedData); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err})
-					return
-				}
-
-				if err := db.
-					Table(updatedData.TableName()).
-					Where("id = ?", id_).
-					Updates(updatedData).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": 1})
-				return
-			})
-
+			restaurants.PUT("/:id", ginrestaurant.UpdateRestaurant(db))
+			//DELETE
 			restaurants.DELETE("/:id", func(c *gin.Context) {
 				id_, err_ := strconv.Atoi(c.Param("id"))
 				if err_ != nil {
