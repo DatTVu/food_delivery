@@ -3,7 +3,7 @@ package restaurantbusiness
 import (
 	"context"
 	"errors"
-	restaurantmodel "fooddelivery/module/restaurant/model"
+	"fooddelivery/module/restaurant/model"
 )
 
 type GetRestaurantStore interface {

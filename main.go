@@ -6,9 +6,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
-	"net/http"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -66,24 +64,7 @@ func main() {
 			//UPDATE
 			restaurants.PUT("/:id", ginrestaurant.UpdateRestaurant(db))
 			//DELETE
-			restaurants.DELETE("/:id", func(c *gin.Context) {
-				id_, err_ := strconv.Atoi(c.Param("id"))
-				if err_ != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"data": err})
-					return
-				}
-
-				if err := db.
-					Table(Restaurant{}.TableName()).
-					Where("id = ?", id_).
-					Delete(nil).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": 1})
-				return
-			})
+			restaurants.DELETE("/:id", ginrestaurant.DeleteRestaurant(db))
 		}
 	}
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
