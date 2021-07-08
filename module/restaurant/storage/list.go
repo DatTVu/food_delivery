@@ -13,6 +13,7 @@ func (s *sqlStore) ListDataWithCondition(
 ) ([]restaurantmodel.Restaurant, error) {
 	db := s.db
 	var result []restaurantmodel.Restaurant
+	db = db.Where("status = ?", 1)
 
 	if filter.OwnerId > 0 {
 		db = db.Where("owner_id = ?", filter.OwnerId)

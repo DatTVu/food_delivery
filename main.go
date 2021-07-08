@@ -1,14 +1,13 @@
 package main
 
 import (
+	"fooddelivery/component/appctx"
 	ginrestaurant "fooddelivery/module/restaurant/transport/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
-	"net/http"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -51,85 +50,24 @@ func main() {
 
 	db = db.Debug()
 
+	appContext := appctx.NewAppContext(db)
+
 	r := gin.Default()
 	v1 := r.Group("/v1")
 
 	{
 		restaurants := v1.Group("/restaurants")
 		{
-			//CRUD Block
 			//CREATE
-			restaurants.POST("", ginrestaurant.CreateRestaurant(db))
-
+			restaurants.POST("", ginrestaurant.CreateRestaurant(appContext))
 			//GET
-			restaurants.GET("", ginrestaurant.ListRestaurant(db))
-
+			restaurants.GET("", ginrestaurant.ListRestaurant(appContext))
 			//GET ID
-			restaurants.GET("/:id", func(c *gin.Context) {
-				id_, err_ := strconv.Atoi(c.Param("id"))
-				if err_ != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"data": err})
-					return
-				}
-
-				var restaurant Restaurant
-
-				if err := db.
-					Where("id = ?", id_).
-					First(&restaurant).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": restaurant})
-				return
-			})
-
+			restaurants.GET("/:id", ginrestaurant.GetRestaurant(appContext))
 			//UPDATE
-			restaurants.PUT("/:id", func(c *gin.Context) {
-				id_, err_ := strconv.Atoi(c.Param("id"))
-				if err_ != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"data": err})
-					return
-				}
-
-				var updatedData RestaurantUpdate
-
-				if err := c.ShouldBind(&updatedData); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err})
-					return
-				}
-
-				if err := db.
-					Table(updatedData.TableName()).
-					Where("id = ?", id_).
-					Updates(updatedData).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": 1})
-				return
-			})
-
-			restaurants.DELETE("/:id", func(c *gin.Context) {
-				id_, err_ := strconv.Atoi(c.Param("id"))
-				if err_ != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"data": err})
-					return
-				}
-
-				if err := db.
-					Table(Restaurant{}.TableName()).
-					Where("id = ?", id_).
-					Delete(nil).Error; err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
-					return
-				}
-
-				c.JSON(http.StatusOK, gin.H{"data": 1})
-				return
-			})
+			restaurants.PUT("/:id", ginrestaurant.UpdateRestaurant(appContext))
+			//DELETE
+			restaurants.DELETE("/:id", ginrestaurant.DeleteRestaurant(appContext))
 		}
 	}
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
