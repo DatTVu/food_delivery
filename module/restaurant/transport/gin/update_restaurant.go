@@ -1,7 +1,9 @@
 package ginrestaurant
 
 import (
+	restaurantbusiness "fooddelivery/module/restaurant/business"
 	"fooddelivery/module/restaurant/model"
+	restaurantstorage "fooddelivery/module/restaurant/storage"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
@@ -23,11 +25,11 @@ func UpdateRestaurant(db *gorm.DB) func(ctx *gin.Context) {
 			return
 		}
 
-		if err := db.
-			Table(updatedData.TableName()).
-			Where("id = ?", id).
-			Updates(updatedData).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"data": err.Error()})
+		store := restaurantstorage.NewSQLStore(db)
+		business := restaurantbusiness.NewUpdateRestaurantBusiness(store)
+
+		if err := business.UpdateRestaurant(c, id, &updatedData); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
 
