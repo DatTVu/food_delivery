@@ -4,6 +4,8 @@ import (
 	"fooddelivery/common"
 )
 
+const EntityName = "Restaurant"
+
 type Restaurant struct {
 	common.SQLModel
 	OwnerId int    `json:"owner_id" gorm:"column:owner_id;"`

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fooddelivery/component/appctx"
 	ginrestaurant "fooddelivery/module/restaurant/transport/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
@@ -49,6 +50,8 @@ func main() {
 
 	db = db.Debug()
 
+	appContext := appctx.NewAppContext(db)
+
 	r := gin.Default()
 	v1 := r.Group("/v1")
 
@@ -56,15 +59,15 @@ func main() {
 		restaurants := v1.Group("/restaurants")
 		{
 			//CREATE
-			restaurants.POST("", ginrestaurant.CreateRestaurant(db))
+			restaurants.POST("", ginrestaurant.CreateRestaurant(appContext))
 			//GET
-			restaurants.GET("", ginrestaurant.ListRestaurant(db))
+			restaurants.GET("", ginrestaurant.ListRestaurant(appContext))
 			//GET ID
-			restaurants.GET("/:id", ginrestaurant.GetRestaurant(db))
+			restaurants.GET("/:id", ginrestaurant.GetRestaurant(appContext))
 			//UPDATE
-			restaurants.PUT("/:id", ginrestaurant.UpdateRestaurant(db))
+			restaurants.PUT("/:id", ginrestaurant.UpdateRestaurant(appContext))
 			//DELETE
-			restaurants.DELETE("/:id", ginrestaurant.DeleteRestaurant(db))
+			restaurants.DELETE("/:id", ginrestaurant.DeleteRestaurant(appContext))
 		}
 	}
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")

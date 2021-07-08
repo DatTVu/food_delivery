@@ -1,30 +1,31 @@
 package ginrestaurant
 
 import (
+	"fooddelivery/common"
+	"fooddelivery/component/appctx"
 	restaurantbusiness "fooddelivery/module/restaurant/business"
 	restaurantstorage "fooddelivery/module/restaurant/storage"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 )
 
-func DeleteRestaurant(db *gorm.DB) func(c *gin.Context) {
+func DeleteRestaurant(appContext appctx.AppContext) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"data": err})
+			c.JSON(http.StatusBadRequest, common.ErrInvalidRequest(err))
 			return
 		}
 
-		store := restaurantstorage.NewSQLStore(db)
+		store := restaurantstorage.NewSQLStore(appContext.GetMainDBConnection())
 		business := restaurantbusiness.NewDeleteRestaurantBusiness(store)
 
 		if err_ := business.DeleteRestaurant(c.Request.Context(), id); err_ != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"data": err_.Error()})
+			c.JSON(http.StatusInternalServerError, common.ErrInternal(err_))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": 1})
+		c.JSON(http.StatusOK, common.SimpleSuccessResponse(1))
 		return
 	}
 }

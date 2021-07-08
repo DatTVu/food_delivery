@@ -1,33 +1,34 @@
 package ginrestaurant
 
 import (
+	"fooddelivery/common"
+	"fooddelivery/component/appctx"
 	"fooddelivery/module/restaurant/business"
 	"fooddelivery/module/restaurant/storage"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 )
 
-func GetRestaurant(db *gorm.DB) func(ctx *gin.Context) {
+func GetRestaurant(appContext appctx.AppContext) func(ctx *gin.Context) {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"data": err})
+			c.JSON(http.StatusBadRequest, common.ErrInvalidRequest(err))
 			return
 		}
 
-		store := restaurantstorage.NewSQLStore(db)
+		store := restaurantstorage.NewSQLStore(appContext.GetMainDBConnection())
 		business := restaurantbusiness.NewgetRestaurantBusiness(store)
 
 		data, err_ := business.GetRestaurant(c.Request.Context(), id)
 
 		if err_ != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"data": err_.Error()})
+			c.JSON(http.StatusBadRequest, err_)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"data": data})
+		c.JSON(http.StatusOK, common.SimpleSuccessResponse(data))
 		return
 	}
 }
