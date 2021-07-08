@@ -2,7 +2,9 @@ package restaurantstorage
 
 import (
 	"context"
+	"fooddelivery/common"
 	"fooddelivery/module/restaurant/model"
+	"gorm.io/gorm"
 )
 
 func (s *sqlStore) Delete(ctx context.Context, id int) error {
@@ -10,7 +12,10 @@ func (s *sqlStore) Delete(ctx context.Context, id int) error {
 		Table(restaurantmodel.Restaurant{}.TableName()).
 		Where("id=?", id).
 		Delete(nil).Error; err != nil {
-		return err
+		if err == gorm.ErrRecordNotFound {
+			return common.RecordNotFound
+		}
+		return common.ErrDB(err)
 	}
 	return nil
 }

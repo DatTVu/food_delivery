@@ -2,7 +2,7 @@ package restaurantbusiness
 
 import (
 	"context"
-	"errors"
+	"fooddelivery/common"
 	"fooddelivery/module/restaurant/model"
 )
 
@@ -21,12 +21,14 @@ func NewUpdateRestaurantBusiness(store UpdateStore) *updateRestaurantBusiness {
 
 func (business *updateRestaurantBusiness) UpdateRestaurant(ctx context.Context, id int, data *restaurantmodel.RestaurantUpdate) error {
 	oldData, err := business.store.GetDataWithCondition(ctx, map[string]interface{}{"id": id})
-
 	if err != nil {
-		return err
+		if err == common.RecordNotFound {
+			return common.ErrEntityNotFound(restaurantmodel.EntityName, err)
+		}
+		return common.ErrCannotGetEntity(restaurantmodel.EntityName, err)
 	}
 	if oldData.Status == 0 {
-		return errors.New("Restaurant has been deleted!")
+		return common.ErrEntityDeleted(restaurantmodel.EntityName, nil)
 	}
 	if err := business.store.Update(ctx, id, data); err != nil {
 		return err
