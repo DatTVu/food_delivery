@@ -2,6 +2,7 @@ package main
 
 import (
 	"fooddelivery/component/appctx"
+	"fooddelivery/component/middleware"
 	ginrestaurant "fooddelivery/module/restaurant/transport/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
@@ -53,6 +54,7 @@ func main() {
 	appContext := appctx.NewAppContext(db)
 
 	r := gin.Default()
+	r.Use(middleware.Recover(appContext))
 	v1 := r.Group("/v1")
 
 	{
